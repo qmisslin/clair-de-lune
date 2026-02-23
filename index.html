@@ -6,10 +6,13 @@
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
         <meta name="theme-color" content="#111111" />
         <meta name="color-scheme" content="light dark" />
-        <title>Calendrier règles & ovulation</title>
+        <title>Clair de lune</title>
+
+        <!-- Swiper (CDN) -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 
         <link rel="icon"
-            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%23111111'/%3E%3Cpath d='M128 46c38 0 70 31 70 70s-32 70-70 70-70-31-70-70 32-70 70-70Zm0 18c-28 0-52 23-52 52s24 52 52 52 52-23 52-52-24-52-52-52Z' fill='%23ffffff' opacity='.92'/%3E%3Cpath d='M90 188c18 12 40 18 64 18s46-6 64-18' fill='none' stroke='%23b56bff' stroke-width='16' stroke-linecap='round'/%3E%3Cpath d='M72 118h112' fill='none' stroke='%23ff4d4d' stroke-width='16' stroke-linecap='round' opacity='.95'/%3E%3C/svg%3E" />
+            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%23111111'/%3E%3Cpath d='M128 46c38 0 70 31 70 70s-32 70-70 70-70-31-70-70 32-70 70-70Zm0 18c-28 0-52 23-52 52s24 52 52 52 52-23 52-52-24-52-52-52Z' fill='%23ffffff' opacity='.92'/%3E%3Cpath d='M90 188c18 12 40 18 64 18s46-6 64-18' fill='none' stroke='%23ffd54a' stroke-width='16' stroke-linecap='round'/%3E%3Ccircle cx='188' cy='118' r='10' fill='%23ff8a3d'/%3E%3Cpath d='M72 118h112' fill='none' stroke='%23ff6fae' stroke-width='16' stroke-linecap='round' opacity='.95'/%3E%3C/svg%3E" />
 
         <style>
             :root {
@@ -19,8 +22,11 @@
                 --muted: #a9a9b2;
                 --grid: #2a2a30;
                 --today: #2d8cff;
-                --period: #ff4d4d;
-                --ovu: #b56bff;
+
+                --period: #ff6fae;
+                --fertile: #ffd54a;
+                --ovu: #ff8a3d;
+
                 --shadow: 0 10px 30px rgba(0, 0, 0, .35);
                 --radius: 16px;
                 --cellRadius: 14px;
@@ -128,6 +134,10 @@
                 background: var(--period);
             }
 
+            .dot.fertile {
+                background: var(--fertile);
+            }
+
             .dot.ovu {
                 background: var(--ovu);
             }
@@ -215,32 +225,29 @@
                 padding: 6px 0;
             }
 
-            .scroller {
+            /* Swiper layout: ensure it has height so our calendar grid can use 6 equal rows */
+            .swiper {
                 flex: 1;
                 min-height: 0;
-                overflow-x: auto;
-                overflow-y: hidden;
-                scroll-snap-type: x mandatory;
-                -webkit-overflow-scrolling: touch;
-                display: flex;
-                gap: 0;
+                width: 100%;
                 border-radius: 14px;
-                scroll-behavior: auto;
-                touch-action: pan-x pan-y;
+                overflow: hidden;
             }
 
-            .scroller::-webkit-scrollbar {
-                height: 0;
+            .swiper-wrapper {
+                height: 100%;
             }
 
-            .page {
-                flex: 0 0 100%;
-                scroll-snap-align: start;
+            .swiper-slide {
+                height: 100%;
+                width: 100%;
                 padding: 0 4px 6px 4px;
             }
 
-            .grid {
+            /* Rename calendar grid class to avoid any potential CSS collisions */
+            .calGrid {
                 height: 100%;
+                width: 100%;
                 display: grid;
                 grid-template-columns: repeat(7, 1fr);
                 grid-template-rows: repeat(6, 1fr);
@@ -260,6 +267,7 @@
                 -webkit-tap-highlight-color: transparent;
                 overflow: hidden;
                 pointer-events: none;
+                opacity: 1;
             }
 
             .dayNum {
@@ -274,6 +282,16 @@
 
             .cell.outMonth {
                 opacity: .65;
+            }
+
+            .cell.future {
+                opacity: .5;
+            }
+
+            .cell.today {
+                outline: 2px solid color-mix(in oklab, var(--today) 80%, transparent);
+                outline-offset: -2px;
+                opacity: 1;
             }
 
             .badges {
@@ -295,16 +313,16 @@
                 background: var(--period);
             }
 
+            .badge.fertile {
+                background: var(--fertile);
+            }
+
             .badge.ovu {
                 background: var(--ovu);
             }
 
-            .cell.today {
-                outline: 2px solid color-mix(in oklab, var(--today) 80%, transparent);
-                outline-offset: -2px;
-            }
-
             .cell.periodBg::before,
+            .cell.fertileBg::before,
             .cell.ovuBg::before {
                 content: "";
                 position: absolute;
@@ -317,23 +335,19 @@
                 background: var(--period);
             }
 
+            .cell.fertileBg::before {
+                background: var(--fertile);
+            }
+
             .cell.ovuBg::before {
                 background: var(--ovu);
+                opacity: .22;
             }
 
             .hint {
                 color: var(--muted);
                 font-size: 12px;
                 padding: 0 4px 2px 4px;
-            }
-
-            /* Prevent flicker during commit: hide page content while swapping months */
-            .scroller.isCommitting {
-                overflow-x: hidden;
-            }
-
-            .scroller.isCommitting .page {
-                visibility: hidden;
             }
 
             dialog {
@@ -426,6 +440,7 @@
                     <div class="sub" id="headlineSub">Définir le cycle via Paramètres</div>
                     <div class="legend" aria-hidden="true">
                         <span><span class="dot period"></span>Règles</span>
+                        <span><span class="dot fertile"></span>Fertile</span>
                         <span><span class="dot ovu"></span>Ovulation</span>
                         <span><span class="dot today"></span>Aujourd'hui</span>
                     </div>
@@ -454,20 +469,21 @@
                     <div>Dim</div>
                 </div>
 
-                <div class="scroller" id="scroller">
-                    <div class="page">
-                        <div class="grid" id="gridPrev"></div>
-                    </div>
-                    <div class="page">
-                        <div class="grid" id="gridCur"></div>
-                    </div>
-                    <div class="page">
-                        <div class="grid" id="gridNext"></div>
+                <div class="swiper" id="swiper">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <div class="calGrid" id="gridPrev"></div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="calGrid" id="gridCur"></div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="calGrid" id="gridNext"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="hint" id="hint">Scroll horizontal pour changer de mois. Les paramètres se modifient
-                    uniquement via ⚙.</div>
+                <div class="hint" id="hint">Glisser horizontalement ou utiliser ‹ › pour changer de mois.</div>
             </section>
         </div>
 
@@ -505,6 +521,7 @@
             </form>
         </dialog>
 
+        <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
         <script>
             const LS_KEY = "cycleTracker.v1";
 
@@ -520,11 +537,9 @@
             const state = {
                 anchorMonth: startOfMonth(new Date()),
                 settings: loadSettings(),
-                locked: false,
-                processing: false,
-                idleTimer: 0,
                 deferredInstallPrompt: null,
-                interacting: false
+                swiper: null,
+                committing: false
             };
 
             function loadSettings() {
@@ -555,7 +570,7 @@
                 state.settings = { ...DEFAULTS };
                 updateHeadline();
                 renderAll();
-                snapToCenter(false);
+                if (state.swiper) state.swiper.slideTo(1, 0, false);
             }
 
             function clampInt(v, min, max, fallback) {
@@ -591,9 +606,13 @@
                 return new Date(d.getFullYear(), d.getMonth(), 1);
             }
 
+            function startOfDay(d) {
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            }
+
             function daysBetween(a, b) {
-                const aa = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-                const bb = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+                const aa = startOfDay(a);
+                const bb = startOfDay(b);
                 return Math.round((bb - aa) / (24 * 3600 * 1000));
             }
 
@@ -613,47 +632,47 @@
                 return addDays(monthStart, -idx);
             }
 
-            function computeCycleWindowsForRange(rangeStart, rangeEndInclusive) {
+            function computeWindowsForRange(rangeStart, rangeEndInclusive) {
                 const s = state.settings;
                 const lastStart = parseISO(s.lastStartISO);
-                if (!lastStart) return { periodSet: new Set(), ovuSet: new Set() };
+                if (!lastStart) return { periodSet: new Set(), fertileSet: new Set(), ovuSet: new Set() };
 
                 const cycleLen = s.cycleLen;
                 const periodLen = s.periodLen;
-                const lutealLen = s.lutealLen;
 
                 const periodSet = new Set();
+                const fertileSet = new Set();
                 const ovuSet = new Set();
 
-                const rangeStartDay = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
-                const rangeEndDay = new Date(rangeEndInclusive.getFullYear(), rangeEndInclusive.getMonth(), rangeEndInclusive.getDate());
+                const rs = startOfDay(rangeStart);
+                const re = startOfDay(rangeEndInclusive);
 
-                const dayDiff = Math.floor((rangeStartDay - lastStart) / (24 * 3600 * 1000));
-                const k0 = Math.floor(dayDiff / cycleLen) - 2;
+                const diff = Math.floor((rs - lastStart) / (24 * 3600 * 1000));
+                const k0 = Math.floor(diff / cycleLen) - 2;
 
-                const maxCycles = 24;
-                for (let k = k0; k < k0 + maxCycles; k++) {
+                for (let k = k0; k < k0 + 30; k++) {
                     const cycleStart = addDays(lastStart, k * cycleLen);
                     const cycleEnd = addDays(cycleStart, cycleLen - 1);
-
-                    if (cycleEnd < addDays(rangeStartDay, -20)) continue;
-                    if (cycleStart > addDays(rangeEndDay, 20)) break;
+                    if (cycleEnd < addDays(rs, -20)) continue;
+                    if (cycleStart > addDays(re, 20)) break;
 
                     for (let i = 0; i < periodLen; i++) {
                         const d = addDays(cycleStart, i);
-                        if (d >= rangeStartDay && d <= rangeEndDay) periodSet.add(isoDate(d));
+                        if (d >= rs && d <= re) periodSet.add(isoDate(d));
                     }
 
-                    const ovuDay = addDays(cycleStart, cycleLen - lutealLen);
-                    const fertileStart = addDays(ovuDay, -5);
-                    const fertileEnd = addDays(ovuDay, 1);
-                    for (let i = 0; i <= daysBetween(fertileStart, fertileEnd); i++) {
-                        const d = addDays(fertileStart, i);
-                        if (d >= rangeStartDay && d <= rangeEndDay) ovuSet.add(isoDate(d));
+                    const ovuDay = addDays(cycleStart, 14);
+                    if (ovuDay >= rs && ovuDay <= re) ovuSet.add(isoDate(ovuDay));
+
+                    const fStart = addDays(ovuDay, -5);
+                    const fEnd = addDays(ovuDay, 1);
+                    for (let i = 0; i <= daysBetween(fStart, fEnd); i++) {
+                        const d = addDays(fStart, i);
+                        if (d >= rs && d <= re) fertileSet.add(isoDate(d));
                     }
                 }
 
-                return { periodSet, ovuSet };
+                return { periodSet, fertileSet, ovuSet };
             }
 
             function nextPeriodStartFrom(today) {
@@ -661,12 +680,11 @@
                 const lastStart = parseISO(s.lastStartISO);
                 if (!lastStart) return null;
 
-                const cycleLen = s.cycleLen;
-                const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const t0 = startOfDay(today);
                 const diff = Math.floor((t0 - lastStart) / (24 * 3600 * 1000));
-                const k = Math.floor(diff / cycleLen);
-                let candidate = addDays(lastStart, k * cycleLen);
-                if (candidate <= t0) candidate = addDays(candidate, cycleLen);
+                const k = Math.floor(diff / s.cycleLen);
+                let candidate = addDays(lastStart, k * s.cycleLen);
+                if (candidate <= t0) candidate = addDays(candidate, s.cycleLen);
                 return candidate;
             }
 
@@ -675,11 +693,10 @@
                 const lastStart = parseISO(s.lastStartISO);
                 if (!lastStart) return null;
 
-                const cycleLen = s.cycleLen;
-                const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const t0 = startOfDay(today);
                 const diff = Math.floor((t0 - lastStart) / (24 * 3600 * 1000));
-                const k = Math.floor(diff / cycleLen);
-                return addDays(lastStart, k * cycleLen);
+                const k = Math.floor(diff / s.cycleLen);
+                return addDays(lastStart, k * s.cycleLen);
             }
 
             function isPeriodDay(dateISO) {
@@ -689,13 +706,16 @@
                 const lastStart = parseISO(s.lastStartISO);
                 if (!lastStart) return false;
 
-                const cycleLen = s.cycleLen;
-                const periodLen = s.periodLen;
                 const diff = Math.floor((dt - lastStart) / (24 * 3600 * 1000));
-                const k = Math.floor(diff / cycleLen);
-                const cycleStart = addDays(lastStart, k * cycleLen);
+                const k = Math.floor(diff / s.cycleLen);
+                const cycleStart = addDays(lastStart, k * s.cycleLen);
                 const dayInCycle = daysBetween(cycleStart, dt);
-                return dayInCycle >= 0 && dayInCycle < periodLen;
+                return dayInCycle >= 0 && dayInCycle < s.periodLen;
+            }
+
+            function formatShortDate(d) {
+                const fmt = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+                return fmt.format(d);
             }
 
             function updateHeadline() {
@@ -715,21 +735,16 @@
 
                 if (isPeriodDay(todayISO)) {
                     const cycleStart = currentCycleStartFor(today);
-                    const dayIndex = daysBetween(cycleStart, new Date(today.getFullYear(), today.getMonth(), today.getDate())) + 1;
+                    const dayIndex = daysBetween(cycleStart, startOfDay(today)) + 1;
                     title.textContent = "Règles en cours";
                     sub.textContent = `Jour ${dayIndex}/${s.periodLen}`;
                     return;
                 }
 
                 const nextStart = nextPeriodStartFrom(today);
-                const d = daysBetween(new Date(today.getFullYear(), today.getMonth(), today.getDate()), nextStart);
+                const d = daysBetween(startOfDay(today), nextStart);
                 title.textContent = `Prochaines règles dans ${d} jour${d === 1 ? "" : "s"}`;
                 sub.textContent = `Dernier début: ${formatShortDate(lastStart)} • Cycle: ${s.cycleLen}j • Règles: ${s.periodLen}j`;
-            }
-
-            function formatShortDate(d) {
-                const fmt = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-                return fmt.format(d);
             }
 
             function renderAll() {
@@ -743,19 +758,19 @@
                 renderMonthGrid($("gridCur"), cur);
                 renderMonthGrid($("gridNext"), next);
 
-                snapToCenter(false);
+                if (state.swiper) state.swiper.update();
             }
 
             function renderMonthGrid(container, monthStart) {
                 container.innerHTML = "";
 
                 const start = gridStartDate(monthStart);
-                const totalDays = 6 * 7;
+                const totalDays = 42;
                 const end = addDays(start, totalDays - 1);
 
-                const { periodSet, ovuSet } = computeCycleWindowsForRange(start, end);
+                const { periodSet, fertileSet, ovuSet } = computeWindowsForRange(start, end);
 
-                const today = new Date();
+                const today = startOfDay(new Date());
                 const todayISO = isoDate(today);
 
                 for (let i = 0; i < totalDays; i++) {
@@ -766,13 +781,17 @@
                     const cell = document.createElement("div");
                     cell.className = "cell";
                     if (!inMonth) cell.classList.add("outMonth");
+
                     if (dISO === todayISO) cell.classList.add("today");
+                    else if (d > today) cell.classList.add("future");
 
                     const isPeriod = periodSet.has(dISO);
                     const isOvu = ovuSet.has(dISO);
+                    const isFertile = fertileSet.has(dISO);
 
-                    if (isPeriod) cell.classList.add("periodBg");
-                    else if (isOvu) cell.classList.add("ovuBg");
+                    if (isOvu) cell.classList.add("ovuBg");
+                    else if (isPeriod) cell.classList.add("periodBg");
+                    else if (isFertile) cell.classList.add("fertileBg");
 
                     const dayNum = document.createElement("div");
                     dayNum.className = "dayNum";
@@ -781,229 +800,74 @@
                     const badges = document.createElement("div");
                     badges.className = "badges";
 
-                    if (isPeriod) {
+                    if (isOvu) {
+                        const b = document.createElement("span");
+                        b.className = "badge ovu";
+                        badges.appendChild(b);
+                    } else if (isPeriod) {
                         const b = document.createElement("span");
                         b.className = "badge period";
                         badges.appendChild(b);
-                    } else if (isOvu) {
+                    } else if (isFertile) {
                         const b = document.createElement("span");
-                        b.className = "badge ovu";
+                        b.className = "badge fertile";
                         badges.appendChild(b);
                     }
 
                     cell.appendChild(dayNum);
                     cell.appendChild(badges);
-
                     container.appendChild(cell);
                 }
-            }
-
-            function lockScroller(lock) {
-                const scroller = $("scroller");
-                state.locked = lock;
-                scroller.style.pointerEvents = lock ? "none" : "auto";
-            }
-
-            function withNoSnapAndNoAnim(fn) {
-                const scroller = $("scroller");
-                const prevSnap = scroller.style.scrollSnapType;
-                const prevBehavior = scroller.style.scrollBehavior;
-
-                scroller.style.scrollSnapType = "none";
-                scroller.style.scrollBehavior = "auto";
-
-                try {
-                    fn();
-                } finally {
-                    scroller.style.scrollSnapType = prevSnap || "";
-                    scroller.style.scrollBehavior = prevBehavior || "";
-                }
-            }
-
-            function snapToCenter(animated) {
-                const scroller = $("scroller");
-                const w = scroller.clientWidth;
-
-                if (animated) {
-                    scroller.scrollTo({ left: w, behavior: "smooth" });
-                    return;
-                }
-
-                withNoSnapAndNoAnim(() => {
-                    scroller.scrollLeft = w;
-                });
             }
 
             function shiftMonth(delta) {
                 const cur = state.anchorMonth;
                 state.anchorMonth = startOfMonth(new Date(cur.getFullYear(), cur.getMonth() + delta, 1));
-                withNoSnapAndNoAnim(() => {
-                    renderAll();
-                });
             }
 
-            function nearestPageIndex() {
-                const scroller = $("scroller");
-                const w = scroller.clientWidth;
-                if (w <= 0) return 1;
-                return Math.max(0, Math.min(2, Math.round(scroller.scrollLeft / w)));
+            function commitAfterSwipe(activeIndex) {
+                if (state.committing) return;
+                if (activeIndex === 1) return;
+
+                state.committing = true;
+
+                if (activeIndex === 0) shiftMonth(-1);
+                else if (activeIndex === 2) shiftMonth(1);
+
+                renderAll();
+
+                // Recenter instantly to middle slide after DOM update
+                state.swiper.allowTouchMove = false;
+                state.swiper.slideTo(1, 0, false);
+                state.swiper.allowTouchMove = true;
+
+                state.committing = false;
             }
 
-            function pageTargetLeft(page) {
-                const scroller = $("scroller");
-                return page * scroller.clientWidth;
-            }
-
-            function waitFrames(n) {
-                return new Promise((resolve) => {
-                    let i = 0;
-                    function step() {
-                        i++;
-                        if (i >= n) resolve();
-                        else requestAnimationFrame(step);
+            function setupSwiper() {
+                state.swiper = new Swiper("#swiper", {
+                    initialSlide: 1,
+                    speed: 260,
+                    resistanceRatio: 0.85,
+                    threshold: 5,
+                    longSwipes: true,
+                    longSwipesRatio: 0.2,
+                    longSwipesMs: 0,
+                    shortSwipes: true,
+                    followFinger: true,
+                    loop: false,
+                    allowTouchMove: true,
+                    on: {
+                        slideChangeTransitionEnd(sw) {
+                            commitAfterSwipe(sw.activeIndex);
+                        }
                     }
-                    requestAnimationFrame(step);
                 });
-            }
-
-            async function settleAndCommit() {
-                if (state.locked || state.processing) return;
-
-                const scroller = $("scroller");
-                const page = nearestPageIndex();
-                const target = pageTargetLeft(page);
-
-                state.processing = true;
-
-                // 1) First, ensure we're really aligned (no DOM swap before alignment)
-                withNoSnapAndNoAnim(() => {
-                    scroller.scrollLeft = target;
-                });
-
-                // Wait 2 frames so the browser paints the aligned final position.
-                await waitFrames(2);
-
-                // 2) Hide pages for 1 frame while swapping month content (prevents flicker)
-                scroller.classList.add("isCommitting");
-                lockScroller(true);
-                await waitFrames(1);
-
-                if (page === 0) shiftMonth(-1);
-                else if (page === 2) shiftMonth(1);
-                else snapToCenter(false);
-
-                // 3) Keep hidden for 1 more frame so the new DOM is painted centered
-                await waitFrames(1);
-
-                lockScroller(false);
-                scroller.classList.remove("isCommitting");
-                state.processing = false;
-            }
-
-            function setupPaging() {
-                const scroller = $("scroller");
-                snapToCenter(false);
-
-                function armIdleSettle() {
-                    window.clearTimeout(state.idleTimer);
-                    state.idleTimer = window.setTimeout(() => {
-                        if (!state.interacting) settleAndCommit();
-                    }, 60);
-                }
-
-                if ("onscrollend" in window) {
-                    scroller.addEventListener("scrollend", () => {
-                        if (state.locked) return;
-                        settleAndCommit();
-                    });
-                }
-
-                scroller.addEventListener("scroll", () => {
-                    if (state.locked) return;
-                    armIdleSettle();
-                }, { passive: true });
-
-                scroller.addEventListener("pointerdown", () => {
-                    if (state.locked) return;
-                    state.interacting = true;
-                    window.clearTimeout(state.idleTimer);
-                });
-
-                scroller.addEventListener("pointerup", () => {
-                    if (state.locked) return;
-                    state.interacting = false;
-                    settleAndCommit();
-                });
-
-                scroller.addEventListener("pointercancel", () => {
-                    if (state.locked) return;
-                    state.interacting = false;
-                    settleAndCommit();
-                });
-
-                scroller.addEventListener("touchstart", () => {
-                    if (state.locked) return;
-                    state.interacting = true;
-                    window.clearTimeout(state.idleTimer);
-                }, { passive: true });
-
-                scroller.addEventListener("touchend", () => {
-                    if (state.locked) return;
-                    state.interacting = false;
-                    settleAndCommit();
-                }, { passive: true });
-
-                scroller.addEventListener("touchcancel", () => {
-                    if (state.locked) return;
-                    state.interacting = false;
-                    settleAndCommit();
-                }, { passive: true });
-
-                window.addEventListener("resize", () => snapToCenter(false));
-            }
-
-            function goPrevMonth() {
-                if (state.locked || state.processing) return;
-                const scroller = $("scroller");
-
-                state.processing = true;
-                (async () => {
-                    // Hide to avoid visual swap
-                    scroller.classList.add("isCommitting");
-                    lockScroller(true);
-                    await waitFrames(1);
-
-                    shiftMonth(-1);
-
-                    await waitFrames(1);
-                    lockScroller(false);
-                    scroller.classList.remove("isCommitting");
-                    state.processing = false;
-                })();
-            }
-
-            function goNextMonth() {
-                if (state.locked || state.processing) return;
-                const scroller = $("scroller");
-
-                state.processing = true;
-                (async () => {
-                    scroller.classList.add("isCommitting");
-                    lockScroller(true);
-                    await waitFrames(1);
-
-                    shiftMonth(1);
-
-                    await waitFrames(1);
-                    lockScroller(false);
-                    scroller.classList.remove("isCommitting");
-                    state.processing = false;
-                })();
             }
 
             function setupMonthButtons() {
-                $("btnPrev").addEventListener("click", goPrevMonth);
-                $("btnNext").addEventListener("click", goNextMonth);
+                $("btnPrev").addEventListener("click", () => state.swiper.slidePrev());
+                $("btnNext").addEventListener("click", () => state.swiper.slideNext());
             }
 
             function syncSettingsDialog() {
@@ -1067,7 +931,7 @@
                     if (!p) {
                         hint.textContent = "Menu du navigateur → \"Ajouter à l'écran d'accueil\".";
                         window.setTimeout(() => {
-                            hint.textContent = "Scroll horizontal pour changer de mois. Les paramètres se modifient uniquement via ⚙.";
+                            hint.textContent = "Glisser horizontalement ou utiliser ‹ › pour changer de mois.";
                         }, 3500);
                         return;
                     }
@@ -1090,13 +954,11 @@
                     display: "standalone",
                     background_color: "#0f0f10",
                     theme_color: "#111111",
-                    icons: [
-                        {
-                            src: document.querySelector("link[rel='icon']").href,
-                            sizes: "256x256",
-                            type: "image/svg+xml"
-                        }
-                    ]
+                    icons: [{
+                        src: document.querySelector("link[rel='icon']").href,
+                        sizes: "256x256",
+                        type: "image/svg+xml"
+                    }]
                 };
 
                 const json = JSON.stringify(manifest);
@@ -1112,10 +974,15 @@
                 setupManifestDataUri();
                 setupDialog();
                 setupInstallButton();
-                setupMonthButtons();
+
                 updateHeadline();
                 renderAll();
-                setupPaging();
+
+                setupSwiper();
+                setupMonthButtons();
+
+                requestAnimationFrame(() => state.swiper.slideTo(1, 0, false));
+                window.addEventListener("resize", () => state.swiper.slideTo(1, 0, false));
             }
 
             init();
