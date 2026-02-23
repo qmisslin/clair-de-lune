@@ -11,9 +11,8 @@
         <!-- Swiper (CDN) -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 
-        <link rel="icon"
-            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%23111111'/%3E%3Cpath d='M128 46c38 0 70 31 70 70s-32 70-70 70-70-31-70-70 32-70 70-70Zm0 18c-28 0-52 23-52 52s24 52 52 52 52-23 52-52-24-52-52-52Z' fill='%23ffffff' opacity='.92'/%3E%3Cpath d='M90 188c18 12 40 18 64 18s46-6 64-18' fill='none' stroke='%23ffd54a' stroke-width='16' stroke-linecap='round'/%3E%3Ccircle cx='188' cy='118' r='10' fill='%23ff8a3d'/%3E%3Cpath d='M72 118h112' fill='none' stroke='%23ff6fae' stroke-width='16' stroke-linecap='round' opacity='.95'/%3E%3C/svg%3E" />
-
+        <link rel="icon" type="image/svg+xml" href="./icon.svg">
+        
         <style>
             :root {
                 --bg: #0f0f10;
@@ -954,11 +953,11 @@
                     display: "standalone",
                     background_color: "#0f0f10",
                     theme_color: "#111111",
-                    icons: [{
-                        src: document.querySelector("link[rel='icon']").href,
-                        sizes: "256x256",
-                        type: "image/svg+xml"
-                    }]
+                    icons: [
+                        { src: "./icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+                        { src: "./icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+                        { src: "./icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }
+                    ]
                 };
 
                 const json = JSON.stringify(manifest);
