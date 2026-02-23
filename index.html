@@ -183,7 +183,6 @@
                 overflow: hidden;
             }
 
-            /* Month header row with arrows */
             .monthRow {
                 display: grid;
                 grid-template-columns: auto 1fr auto;
@@ -227,7 +226,6 @@
                 gap: 0;
                 border-radius: 14px;
                 scroll-behavior: auto;
-                /* Critical: allow horizontal pan on touch */
                 touch-action: pan-x pan-y;
             }
 
@@ -327,6 +325,15 @@
                 color: var(--muted);
                 font-size: 12px;
                 padding: 0 4px 2px 4px;
+            }
+
+            /* Prevent flicker during commit: hide page content while swapping months */
+            .scroller.isCommitting {
+                overflow-x: hidden;
+            }
+
+            .scroller.isCommitting .page {
+                visibility: hidden;
             }
 
             dialog {
@@ -847,7 +854,19 @@
                 return page * scroller.clientWidth;
             }
 
-            function settleAndCommit() {
+            function waitFrames(n) {
+                return new Promise((resolve) => {
+                    let i = 0;
+                    function step() {
+                        i++;
+                        if (i >= n) resolve();
+                        else requestAnimationFrame(step);
+                    }
+                    requestAnimationFrame(step);
+                });
+            }
+
+            async function settleAndCommit() {
                 if (state.locked || state.processing) return;
 
                 const scroller = $("scroller");
@@ -856,16 +875,28 @@
 
                 state.processing = true;
 
-                lockScroller(true);
+                // 1) First, ensure we're really aligned (no DOM swap before alignment)
                 withNoSnapAndNoAnim(() => {
                     scroller.scrollLeft = target;
                 });
+
+                // Wait 2 frames so the browser paints the aligned final position.
+                await waitFrames(2);
+
+                // 2) Hide pages for 1 frame while swapping month content (prevents flicker)
+                scroller.classList.add("isCommitting");
+                lockScroller(true);
+                await waitFrames(1);
 
                 if (page === 0) shiftMonth(-1);
                 else if (page === 2) shiftMonth(1);
                 else snapToCenter(false);
 
+                // 3) Keep hidden for 1 more frame so the new DOM is painted centered
+                await waitFrames(1);
+
                 lockScroller(false);
+                scroller.classList.remove("isCommitting");
                 state.processing = false;
             }
 
@@ -892,8 +923,6 @@
                     armIdleSettle();
                 }, { passive: true });
 
-                // IMPORTANT: touch events on Android sometimes won't fire pointer events on nested scrollers reliably.
-                // Use both pointer + touch.
                 scroller.addEventListener("pointerdown", () => {
                     if (state.locked) return;
                     state.interacting = true;
@@ -935,20 +964,41 @@
 
             function goPrevMonth() {
                 if (state.locked || state.processing) return;
+                const scroller = $("scroller");
+
                 state.processing = true;
-                lockScroller(true);
-                shiftMonth(-1);
-                lockScroller(false);
-                state.processing = false;
+                (async () => {
+                    // Hide to avoid visual swap
+                    scroller.classList.add("isCommitting");
+                    lockScroller(true);
+                    await waitFrames(1);
+
+                    shiftMonth(-1);
+
+                    await waitFrames(1);
+                    lockScroller(false);
+                    scroller.classList.remove("isCommitting");
+                    state.processing = false;
+                })();
             }
 
             function goNextMonth() {
                 if (state.locked || state.processing) return;
+                const scroller = $("scroller");
+
                 state.processing = true;
-                lockScroller(true);
-                shiftMonth(1);
-                lockScroller(false);
-                state.processing = false;
+                (async () => {
+                    scroller.classList.add("isCommitting");
+                    lockScroller(true);
+                    await waitFrames(1);
+
+                    shiftMonth(1);
+
+                    await waitFrames(1);
+                    lockScroller(false);
+                    scroller.classList.remove("isCommitting");
+                    state.processing = false;
+                })();
             }
 
             function setupMonthButtons() {
