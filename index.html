@@ -183,14 +183,16 @@
                 overflow: hidden;
             }
 
+            /* Month header row with arrows */
             .monthRow {
                 display: grid;
-                grid-template-columns: 1fr;
+                grid-template-columns: auto 1fr auto;
                 align-items: center;
+                gap: 10px;
                 padding: 2px 4px 0 4px;
             }
 
-            .monthRow .monthTitle {
+            .monthTitle {
                 text-align: center;
                 font-weight: 800;
                 letter-spacing: .2px;
@@ -224,8 +226,9 @@
                 display: flex;
                 gap: 0;
                 border-radius: 14px;
-                touch-action: pan-y;
                 scroll-behavior: auto;
+                /* Critical: allow horizontal pan on touch */
+                touch-action: pan-x pan-y;
             }
 
             .scroller::-webkit-scrollbar {
@@ -422,14 +425,16 @@
                 </div>
                 <div class="actions">
                     <button class="iconBtn" id="btnInstall" title="Ajouter à l'écran d'accueil"
-                        aria-label="Ajouter à l'écran d'accueil" style="display:none;">+</button>
+                        aria-label="Ajouter à l'écran d'accueil" style="display:none;">＋</button>
                     <button class="iconBtn" id="btnSettings" title="Paramètres" aria-label="Paramètres">⚙</button>
                 </div>
             </header>
 
             <section class="calendarShell">
                 <div class="monthRow">
+                    <button class="iconBtn" id="btnPrev" title="Mois précédent" aria-label="Mois précédent">‹</button>
                     <div class="monthTitle" id="monthTitle">—</div>
+                    <button class="iconBtn" id="btnNext" title="Mois suivant" aria-label="Mois suivant">›</button>
                 </div>
 
                 <div class="dow" aria-hidden="true">
@@ -851,9 +856,7 @@
 
                 state.processing = true;
 
-                // Make alignment and month swap instant: no smooth, no snap, no extra waiting.
                 lockScroller(true);
-
                 withNoSnapAndNoAnim(() => {
                     scroller.scrollLeft = target;
                 });
@@ -866,7 +869,7 @@
                 state.processing = false;
             }
 
-            function setupInstagramLikePaging() {
+            function setupPaging() {
                 const scroller = $("scroller");
                 snapToCenter(false);
 
@@ -877,7 +880,6 @@
                     }, 60);
                 }
 
-                // Fast-path: use scrollend when available
                 if ("onscrollend" in window) {
                     scroller.addEventListener("scrollend", () => {
                         if (state.locked) return;
@@ -890,7 +892,8 @@
                     armIdleSettle();
                 }, { passive: true });
 
-                // Commit immediately when the user releases the gesture (no extra click required)
+                // IMPORTANT: touch events on Android sometimes won't fire pointer events on nested scrollers reliably.
+                // Use both pointer + touch.
                 scroller.addEventListener("pointerdown", () => {
                     if (state.locked) return;
                     state.interacting = true;
@@ -909,14 +912,48 @@
                     settleAndCommit();
                 });
 
-                // Fallback for some touch-only browsers
+                scroller.addEventListener("touchstart", () => {
+                    if (state.locked) return;
+                    state.interacting = true;
+                    window.clearTimeout(state.idleTimer);
+                }, { passive: true });
+
                 scroller.addEventListener("touchend", () => {
                     if (state.locked) return;
                     state.interacting = false;
                     settleAndCommit();
                 }, { passive: true });
 
+                scroller.addEventListener("touchcancel", () => {
+                    if (state.locked) return;
+                    state.interacting = false;
+                    settleAndCommit();
+                }, { passive: true });
+
                 window.addEventListener("resize", () => snapToCenter(false));
+            }
+
+            function goPrevMonth() {
+                if (state.locked || state.processing) return;
+                state.processing = true;
+                lockScroller(true);
+                shiftMonth(-1);
+                lockScroller(false);
+                state.processing = false;
+            }
+
+            function goNextMonth() {
+                if (state.locked || state.processing) return;
+                state.processing = true;
+                lockScroller(true);
+                shiftMonth(1);
+                lockScroller(false);
+                state.processing = false;
+            }
+
+            function setupMonthButtons() {
+                $("btnPrev").addEventListener("click", goPrevMonth);
+                $("btnNext").addEventListener("click", goNextMonth);
             }
 
             function syncSettingsDialog() {
@@ -964,14 +1001,12 @@
                 const btn = $("btnInstall");
                 const hint = $("hint");
 
-                // beforeinstallprompt works on Chromium-based browsers (Android Chrome, etc.)
                 window.addEventListener("beforeinstallprompt", (e) => {
                     e.preventDefault();
                     state.deferredInstallPrompt = e;
                     btn.style.display = "grid";
                 });
 
-                // Hide install button if already installed
                 window.addEventListener("appinstalled", () => {
                     state.deferredInstallPrompt = null;
                     btn.style.display = "none";
@@ -980,8 +1015,7 @@
                 btn.addEventListener("click", async () => {
                     const p = state.deferredInstallPrompt;
                     if (!p) {
-                        // iOS Safari or unsupported: show a short hint
-                        hint.textContent = "Pour ajouter à l'écran d'accueil: menu du navigateur → \"Ajouter à l'écran d'accueil\".";
+                        hint.textContent = "Menu du navigateur → \"Ajouter à l'écran d'accueil\".";
                         window.setTimeout(() => {
                             hint.textContent = "Scroll horizontal pour changer de mois. Les paramètres se modifient uniquement via ⚙.";
                         }, 3500);
@@ -1000,8 +1034,8 @@
 
             function setupManifestDataUri() {
                 const manifest = {
-                    name: "Calendrier règles & ovulation",
-                    short_name: "Cycle",
+                    name: "Clair de lune",
+                    short_name: "ClairLune",
                     start_url: "./",
                     display: "standalone",
                     background_color: "#0f0f10",
@@ -1028,9 +1062,10 @@
                 setupManifestDataUri();
                 setupDialog();
                 setupInstallButton();
+                setupMonthButtons();
                 updateHeadline();
                 renderAll();
-                setupInstagramLikePaging();
+                setupPaging();
             }
 
             init();
